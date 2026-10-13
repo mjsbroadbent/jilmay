@@ -1,0 +1,495 @@
+(function () {
+  "use strict";
+
+  var DATA = window.JILMAY;
+  var PAGE = 20;
+
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+
+  /* Pastel backgrounds for listing thumbnails, one per category */
+  var TINTS = {
+    horses: ["#fff1dc", "#ffe2bd"], transport: ["#e3efff", "#cfe2ff"], parts: ["#eceff3", "#dde2e9"],
+    home: ["#fff6cf", "#ffe98f"], realestate: ["#e9f7ec", "#d2efd9"], electronics: ["#efe9ff", "#e0d6ff"],
+    construction: ["#ffe9e3", "#ffd5ca"], livestock: ["#f1f8e4", "#e1f0c7"], personal: ["#fde8f1", "#f9d2e4"],
+    kids: ["#e5f7fb", "#cbeef6"], food: ["#fff0e0", "#ffdcb5"], jobs: ["#e8eefc", "#d5e0fa"],
+    services: ["#e6f6f4", "#cdeee9"], free: ["#f9eefe", "#efd9fb"]
+  };
+
+  var NOTICES = {
+    horses: "🐎 Horses are listed for riding, racing, breeding and milk only. Horsemeat in any form is prohibited (Jılmay Rules §4.1).",
+    livestock: "🚫 Bovine animals are not accepted in this category, or anywhere on Jılmay (Jılmay Rules §4.2)."
+  };
+
+  var catById = {};
+  DATA.categories.forEach(function (c) { catById[c.id] = c; });
+
+  /* Give every listing an id and a search string */
+  DATA.listings.forEach(function (l, i) {
+    l.id = i + 1;
+    var c = catById[l.c];
+    l._search = norm([l.t, l.d, l.city, l.s, c ? c.name : ""].join(" "));
+  });
+
+  /* ---------- helpers ---------- */
+  function norm(s) {
+    return String(s).toLowerCase()
+      .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ö/g, "o").replace(/ü/g, "u")
+      .replace(/ğ/g, "g").replace(/ñ/g, "n").replace(/ş/g, "s").replace(/ç/g, "c")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ");
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  function usd(som) {
+    var d = som / DATA.rate;
+    return "$" + (d >= 100 ? Math.round(d).toLocaleString("en-US") : d.toFixed(2));
+  }
+  function priceHtml(l) {
+    if (l.p === 0) return '<div class="price free">Free</div>';
+    if (l.p === null || l.p === undefined) return '<div class="price neg">Negotiable</div>';
+    var unit = l.unit ? " / " + l.unit : "";
+    var alt = l.p >= 5000 ? '<span class="usd">≈ ' + usd(l.p) + "</span>" : "";
+    return '<div class="price">' + fmt(l.p) + " som" + unit + alt + "</div>";
+  }
+  function when(mins) {
+    var now = new Date();
+    var t = new Date(now.getTime() - mins * 60000);
+    var hhmm = ("0" + t.getHours()).slice(-2) + ":" + ("0" + t.getMinutes()).slice(-2);
+    if (mins < 60) return mins <= 1 ? "Just now" : mins + " min ago";
+    var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (t.getTime() >= startToday) return "Today, " + hhmm;
+    if (t.getTime() >= startToday - 86400000) return "Yesterday, " + hhmm;
+    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return t.getDate() + " " + months[t.getMonth()];
+  }
+  function initials(name) {
+    var parts = name.replace(/[^\p{L}\s-]/gu, "").split(/\s+/).filter(Boolean);
+    return ((parts[0] || "?")[0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+  }
+  function avaColor(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    return "hsl(" + h + ", 55%, 52%)";
+  }
+
+  /* ---------- routing (state lives in the URL hash) ---------- */
+  function parseHash() {
+    var h = location.hash.replace(/^#/, "");
+    if (h === "cargo" || h === "calc") return { view: "cargo" };
+    if (h === "about" || h === "rules") return { view: "home", modal: h, cat: "", city: "", q: "" };
+    var qs = new URLSearchParams(h.replace(/^\/?\??/, ""));
+    return { view: "home", cat: qs.get("cat") || "", city: qs.get("city") || "", q: qs.get("q") || "" };
+  }
+  function setHome(next) {
+    var cur = parseHash();
+    var st = {
+      cat: next.cat !== undefined ? next.cat : (cur.cat || ""),
+      city: next.city !== undefined ? next.city : (cur.city || ""),
+      q: next.q !== undefined ? next.q : (cur.q || "")
+    };
+    var qs = new URLSearchParams();
+    if (st.cat) qs.set("cat", st.cat);
+    if (st.city) qs.set("city", st.city);
+    if (st.q) qs.set("q", st.q);
+    var s = qs.toString();
+    location.hash = s ? "/?" + s : "/";
+  }
+
+  /* ---------- rendering ---------- */
+  var shown = PAGE;
+  var lastKey = "";
+
+  function filtered(st) {
+    var tokens = norm(st.q).split(/\s+/).filter(Boolean);
+    return DATA.listings.filter(function (l) {
+      if (st.cat && l.c !== st.cat) return false;
+      if (st.city && l.city !== st.city) return false;
+      for (var i = 0; i < tokens.length; i++) if (l._search.indexOf(tokens[i]) === -1) return false;
+      return true;
+    }).sort(function (a, b) {
+      if (!!b.vip !== !!a.vip) return b.vip ? 1 : -1;
+      return a.m - b.m;
+    });
+  }
+
+  function renderCats(st) {
+    var counts = {};
+    DATA.listings.forEach(function (l) {
+      if (!st.city || l.city === st.city) counts[l.c] = (counts[l.c] || 0) + 1;
+    });
+    $("#cats").innerHTML = DATA.categories.map(function (c) {
+      return '<button type="button" class="cat' + (st.cat === c.id ? " on" : "") + '" data-cat="' + c.id + '">' +
+        '<span class="cat-e">' + c.e + "</span>" +
+        '<span class="cat-n">' + esc(c.name) + "</span>" +
+        '<span class="cat-c">' + (counts[c.id] || 0) + "</span></button>";
+    }).join("");
+  }
+
+  function renderCities(st) {
+    var html = '<button type="button" class="chip' + (!st.city ? " on" : "") + '" data-city="">📍 All of Irad</button>';
+    html += DATA.cities.map(function (c) {
+      return '<button type="button" class="chip' + (st.city === c ? " on" : "") + '" data-city="' + esc(c) + '">' + esc(c) + "</button>";
+    }).join("");
+    $("#cities").innerHTML = html;
+  }
+
+  function card(l) {
+    var c = catById[l.c];
+    var tint = TINTS[l.c] || ["#f2f3f5", "#e6e8ec"];
+    return '<div class="card" role="button" tabindex="0" data-id="' + l.id + '" aria-label="' + esc(l.t) + '">' +
+      '<div class="thumb" style="background:linear-gradient(145deg,' + tint[0] + "," + tint[1] + ')">' +
+        '<span class="thumb-bg-e" style="top:10%;left:12%">' + c.e + "</span>" +
+        '<span class="thumb-bg-e" style="bottom:8%;right:10%">' + c.e + "</span>" +
+        '<span class="thumb-e">' + l.e + "</span>" +
+        (l.vip ? '<span class="badge-vip">VIP</span>' : "") +
+        '<span class="fav" data-fav title="Add to favourites">🤍</span>' +
+      "</div>" +
+      '<div class="card-body">' +
+        priceHtml(l) +
+        '<div class="title">' + esc(l.t) + "</div>" +
+        '<div class="desc">' + esc(l.d) + "</div>" +
+        '<div class="where-line">📍 ' + esc(l.city) + " · " + when(l.m) + "</div>" +
+        '<div class="meta"><span class="ava" style="background:' + avaColor(l.s) + '">' + esc(initials(l.s)) + "</span>" +
+          '<span class="seller">' + esc(l.s) + "</span>" + (l.pro ? '<span class="pro">PRO</span>' : "") +
+        "</div>" +
+      "</div></div>";
+  }
+
+  function renderFeed(st) {
+    var list = filtered(st);
+    var key = st.cat + "|" + st.city + "|" + st.q;
+    if (key !== lastKey) { shown = PAGE; lastKey = key; }
+
+    var cat = st.cat ? catById[st.cat] : null;
+    var title = st.q ? "Results for “" + st.q + "”" : (cat ? cat.e + " " + cat.name : "New listings in Irad");
+    if (st.city) title += " in " + st.city;
+    $("#feedTitle").textContent = title;
+    $("#feedSub").textContent = list.length + (list.length === 1 ? " listing" : " listings");
+
+    var notice = NOTICES[st.cat];
+    if (!notice && st.q && /\b(cow|cows|cattle|bull|ox|oxen|calf|yak|beef|bovine)\b/i.test(st.q)) notice = NOTICES.livestock;
+    if (!notice && st.q && /\b(horsemeat|kazy|kazi|chuchuk)\b/i.test(st.q)) notice = NOTICES.horses;
+    $("#notice").hidden = !notice;
+    $("#notice").textContent = notice || "";
+
+    if (!list.length) {
+      $("#grid").innerHTML = '<div class="empty"><span class="empty-e">😶</span><h2>Nothing found</h2>' +
+        "<p>Try another word, choose all of Irad, or ask around at the bazaar.</p></div>";
+      $("#moreBtn").hidden = true;
+      return;
+    }
+    $("#grid").innerHTML = list.slice(0, shown).map(card).join("");
+    $("#moreBtn").hidden = list.length <= shown;
+  }
+
+  function render() {
+    var st = parseHash();
+    $("#viewHome").hidden = st.view !== "home";
+    $("#viewCargo").hidden = st.view !== "cargo";
+    $(".cargo-link").classList.toggle("on", st.view === "cargo");
+
+    if (st.view === "cargo") {
+      if (location.hash === "#calc") $("#calc").scrollIntoView({ behavior: "smooth", block: "center" });
+      else window.scrollTo(0, 0);
+      return;
+    }
+    $("#searchInput").value = st.q;
+    $("#searchCat").value = st.cat;
+    renderCats(st);
+    renderCities(st);
+    renderFeed(st);
+    if (st.modal) openInfo(st.modal);
+  }
+
+  /* ---------- search & filters ---------- */
+  $("#searchCat").innerHTML += DATA.categories.map(function (c) {
+    return '<option value="' + c.id + '">' + c.e + " " + esc(c.name) + "</option>";
+  }).join("");
+
+  $("#searchForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    setHome({ q: $("#searchInput").value.trim(), cat: $("#searchCat").value });
+  });
+  $("#searchCat").addEventListener("change", function () {
+    setHome({ q: $("#searchInput").value.trim(), cat: $("#searchCat").value });
+  });
+  /* live search while typing (only on the marketplace page) */
+  var typing;
+  $("#searchInput").addEventListener("input", function () {
+    clearTimeout(typing);
+    typing = setTimeout(function () {
+      var st = parseHash();
+      if (st.view !== "home") return;
+      history.replaceState(null, "", "#/?" + new URLSearchParams(
+        Object.entries({ cat: st.cat, city: st.city, q: $("#searchInput").value.trim() }).filter(function (p) { return p[1]; })
+      ).toString());
+      var now = parseHash();
+      renderCats(now); renderFeed(now);
+    }, 180);
+  });
+
+  $("#cats").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]");
+    if (!b) return;
+    var st = parseHash();
+    setHome({ cat: st.cat === b.dataset.cat ? "" : b.dataset.cat, q: "" });
+  });
+  $("#cities").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-city]");
+    if (b) setHome({ city: b.dataset.city });
+  });
+  $("#moreBtn").addEventListener("click", function () {
+    shown += PAGE;
+    renderFeed(parseHash());
+  });
+  $(".logo").addEventListener("click", function (e) {
+    e.preventDefault();
+    location.hash = "/";
+  });
+  $$("[data-scroll]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      $("#" + a.dataset.scroll).scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+
+  /* ---------- cargo calculator ---------- */
+  function calc() {
+    var kg = parseFloat($("#calcKg").value);
+    var rate = parseFloat($("#calcZone").value);
+    if (!(kg > 0)) { $("#calcPrice").textContent = "—"; $("#calcUsd").textContent = ""; return; }
+    var som = Math.max(1, Math.ceil(kg * 10) / 10) * rate;
+    som = Math.round(som);
+    $("#calcPrice").textContent = fmt(som) + " som";
+    $("#calcUsd").textContent = "≈ " + usd(som);
+  }
+  $("#calcKg").addEventListener("input", calc);
+  $("#calcZone").addEventListener("change", calc);
+  calc();
+
+  /* ---------- the login loop ---------- */
+  var REASONS = {
+    item: "Log in to see this listing and contact the seller.",
+    fav: "Log in to save listings to your favourites.",
+    post: "Log in to post an ad. It's free!",
+    cargo: "Log in to get your personal Bishkek address.",
+    general: "Welcome back! Log in to continue."
+  };
+  var timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function busy(btn, text) {
+    btn.disabled = true;
+    btn.dataset.label = btn.dataset.label || btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span>' + text;
+  }
+  function idle(btn) {
+    btn.disabled = false;
+    if (btn.dataset.label) btn.textContent = btn.dataset.label;
+  }
+  function shake(el) {
+    el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
+  }
+  function msg(id, text, info) {
+    var m = $(id);
+    m.textContent = text || "";
+    m.classList.toggle("info", !!info);
+  }
+  function face(pane, e) { $(".auth-face", pane).textContent = e; }
+
+  function showPane(name) {
+    ["Login", "Forgot", "Register"].forEach(function (p) {
+      $("#pane" + p).hidden = p.toLowerCase() !== name;
+    });
+    var pane = $("#pane" + name.charAt(0).toUpperCase() + name.slice(1));
+    var first = $("input", pane);
+    if (first && window.matchMedia("(pointer: fine)").matches) setTimeout(function () { first.focus(); }, 30);
+  }
+
+  function resetLogin() {
+    clearTimers();
+    ["#loginBtn", "#forgotBtn", "#regBtn"].forEach(function (b) { idle($(b)); });
+    msg("#loginMsg"); msg("#forgotMsg"); msg("#regMsg");
+    $$("#authModal input").forEach(function (i) { i.classList.remove("bad"); });
+    $("#loginPass").value = "";
+    face($("#paneLogin"), "😊");
+    face($("#paneForgot"), "🤔");
+    face($("#paneRegister"), "🥳");
+  }
+
+  function openLogin(reason) {
+    closeModals();
+    resetLogin();
+    $("#loginReason").textContent = REASONS[reason] || REASONS.general;
+    $("#authModal").hidden = false;
+    document.body.style.overflow = "hidden";
+    showPane("login");
+  }
+
+  function backToLogin() {
+    resetLogin();
+    showPane("login");
+  }
+
+  /* Step 1: any password is wrong */
+  $("#paneLogin").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var user = $("#loginUser"), pass = $("#loginPass"), btn = $("#loginBtn");
+    if (!user.value.trim() || !pass.value) {
+      msg("#loginMsg", "Enter your phone or email and your password.");
+      shake($("#paneLogin"));
+      return;
+    }
+    msg("#loginMsg");
+    busy(btn, "Checking…");
+    later(function () {
+      idle(btn);
+      pass.classList.add("bad");
+      face($("#paneLogin"), "😬");
+      msg("#loginMsg", "Incorrect password. Please try again or reset your password.");
+      shake($("#paneLogin"));
+      later(function () {
+        msg("#forgotMsg");
+        $("#forgotEmail").classList.remove("bad");
+        if (user.value.indexOf("@") > -1) $("#forgotEmail").value = user.value.trim();
+        face($("#paneForgot"), "🤔");
+        showPane("forgot");
+      }, 2200);
+    }, 1300);
+  });
+
+  /* Step 2: every email is invalid */
+  $("#paneForgot").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = $("#forgotEmail"), btn = $("#forgotBtn");
+    if (!email.value.trim()) {
+      msg("#forgotMsg", "Please enter your email address.");
+      shake($("#paneForgot"));
+      return;
+    }
+    msg("#forgotMsg");
+    busy(btn, "Sending…");
+    later(function () {
+      idle(btn);
+      email.classList.add("bad");
+      face($("#paneForgot"), "😵");
+      msg("#forgotMsg", "This email address is invalid.");
+      shake($("#paneForgot"));
+      later(backToLogin, 2400);
+    }, 1400);
+  });
+
+  /* Registering doesn't help either */
+  $("#paneRegister").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var user = $("#regUser"), btn = $("#regBtn");
+    if (!$("#regName").value.trim() || !user.value.trim() || !$("#regPass").value) {
+      msg("#regMsg", "Please fill in all fields.");
+      shake($("#paneRegister"));
+      return;
+    }
+    msg("#regMsg");
+    busy(btn, "Creating account…");
+    later(function () {
+      idle(btn);
+      user.classList.add("bad");
+      face($("#paneRegister"), "🙃");
+      msg("#regMsg", "An account with this phone or email already exists. Please log in.");
+      shake($("#paneRegister"));
+      later(function () {
+        var u = user.value.trim();
+        backToLogin();
+        $("#loginUser").value = u;
+      }, 2400);
+    }, 1400);
+  });
+
+  $$("#authModal [data-goto]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var to = b.dataset.goto;
+      if (to === "login") backToLogin();
+      else { resetLogin(); showPane(to); }
+    });
+  });
+
+  /* Everything that needs an account opens the loop */
+  document.addEventListener("click", function (e) {
+    var cardEl = e.target.closest(".card");
+    if (cardEl) { openLogin(e.target.closest("[data-fav]") ? "fav" : "item"); return; }
+    var t = e.target.closest("[data-login]");
+    if (t) {
+      e.preventDefault();
+      if (t.classList.contains("btn-post") && t.closest("#viewCargo")) openLogin("cargo");
+      else if (t.classList.contains("btn-post")) openLogin("post");
+      else openLogin("general");
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("card")) {
+      e.preventDefault();
+      openLogin("item");
+    }
+    if (e.key === "Escape") closeModals();
+  });
+
+  /* ---------- info modals ---------- */
+  var INFO = {
+    about:
+      '<span class="big-e">😊</span><h2>About Jılmay</h2>' +
+      "<p><b>Jılmay</b> means “smile!” in Iradi. It began as a simple board for selling horses and Ladas, and today it is where all of Irad buys and sells, from Talas to Tash-Kömür.</p>" +
+      "<p>International online shops don't deliver to Irad. Jılmay does. Buy from your neighbours here, and for everything else, <a href=\"#cargo\" data-close-link>Jılmay Cargo</a> brings parcels from Kyrgyzstan to your door.</p>" +
+      "<p>Prices on Jılmay are shown in som. One US dollar is five som, as it has been since 1993.</p>",
+    rules:
+      '<span class="big-e">📜</span><h2>Jılmay Rules</h2><ol>' +
+      "<li>Be polite to buyers and sellers. Smile. 😊</li>" +
+      "<li>One item per listing. Horses must be photographed from both sides.</li>" +
+      "<li>Prices must be given in som or US dollars.</li>" +
+      "<li>Prohibited listings:<br>§4.1 horsemeat in any form;<br>§4.2 bovine animals, and any images of bovines;<br>§4.3 weapons and ammunition;<br>§4.4 goods banned by the ISEZ authorities.</li>" +
+      "<li>Found animals must be posted in Free &amp; Found within three days.</li>" +
+      "<li>Jılmay is not responsible for the condition of Soviet vehicles.</li></ol>"
+  };
+  function openInfo(which) {
+    $("#infoBody").innerHTML = INFO[which];
+    $("#authModal").hidden = true;
+    $("#infoModal").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeModals() {
+    clearTimers();
+    $("#authModal").hidden = true;
+    $("#infoModal").hidden = true;
+    document.body.style.overflow = "";
+  }
+  $$("[data-modal]").forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); openInfo(a.dataset.modal); });
+  });
+  $$(".modal").forEach(function (m) {
+    m.addEventListener("click", function (e) {
+      if (e.target.closest("[data-close]") || e.target.closest("[data-close-link]")) closeModals();
+    });
+  });
+
+  /* ---------- languages ---------- */
+  var toastTimer;
+  function toast(text) {
+    var t = $("#toast");
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  $$("[data-lang]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (b.dataset.lang === "Iradi") toast("Jılmay in Iradi is coming soon 😊");
+      else if (b.dataset.lang === "Русский") toast("Русская версия временно недоступна 😊");
+    });
+  });
+
+  window.addEventListener("hashchange", render);
+  render();
+})();
