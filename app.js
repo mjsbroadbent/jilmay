@@ -16,6 +16,7 @@
     services: ["#e6f6f4", "#cdeee9"], free: ["#f9eefe", "#efd9fb"]
   };
 
+  var MONEY_NOTICE = "💵 Jılmay does not accept listings for currency exchange or cryptocurrency, and we do not accept Tulparcoin (Jılmay Rules §4.5). Prices are in som or US dollars; Jılmay Cargo is paid in US dollars only.";
   var NOTICES = {
     horses: "🐎 Horses are listed for riding, racing, breeding and milk only. Horsemeat in any form is prohibited (Jılmay Rules §4.1).",
     livestock: "🚫 Bovine animals are not accepted in this category, or anywhere on Jılmay (Jılmay Rules §4.2)."
@@ -44,14 +45,17 @@
     });
   }
   function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
-  function usd(som) {
-    var d = som / DATA.rate;
-    return "$" + (d >= 100 ? Math.round(d).toLocaleString("en-US") : d.toFixed(2));
+  function dollars(d) {
+    return "$" + (d >= 100 || d === Math.round(d) ? Math.round(d).toLocaleString("en-US") : d.toFixed(2));
   }
+  function usd(som) { return dollars(som / DATA.rate); }
   function priceHtml(l) {
     if (l.p === 0) return '<div class="price free">Free</div>';
-    if (l.p === null || l.p === undefined) return '<div class="price neg">Negotiable</div>';
+    if (l.p === null || l.p === undefined) {
+      return '<div class="price neg">Negotiable' + (l.cur === "usd" ? ' <span class="usd">in $</span>' : "") + "</div>";
+    }
     var unit = l.unit ? " / " + l.unit : "";
+    if (l.cur === "usd") return '<div class="price">' + dollars(l.p) + unit + "</div>";
     var alt = l.p >= 5000 ? '<span class="usd">≈ ' + usd(l.p) + "</span>" : "";
     return '<div class="price">' + fmt(l.p) + " som" + unit + alt + "</div>";
   }
@@ -173,6 +177,7 @@
     var notice = NOTICES[st.cat];
     if (!notice && st.q && /\b(cow|cows|cattle|bull|ox|oxen|calf|yak|beef|bovine)\b/i.test(st.q)) notice = NOTICES.livestock;
     if (!notice && st.q && /\b(horsemeat|kazy|kazi|chuchuk)\b/i.test(st.q)) notice = NOTICES.horses;
+    if (!notice && st.q && /\b(dollars?|usd|exchange|tulpar|tulparcoin|tlpr|crypto\w*|bitcoin)\b/i.test(st.q)) notice = MONEY_NOTICE;
     $("#notice").hidden = !notice;
     $("#notice").textContent = notice || "";
 
@@ -262,10 +267,9 @@
     var kg = parseFloat($("#calcKg").value);
     var rate = parseFloat($("#calcZone").value);
     if (!(kg > 0)) { $("#calcPrice").textContent = "—"; $("#calcUsd").textContent = ""; return; }
-    var som = Math.max(1, Math.ceil(kg * 10) / 10) * rate;
-    som = Math.round(som);
-    $("#calcPrice").textContent = fmt(som) + " som";
-    $("#calcUsd").textContent = "≈ " + usd(som);
+    var cost = Math.max(1, Math.ceil(kg * 10) / 10) * rate;
+    $("#calcPrice").textContent = "$" + cost.toFixed(2);
+    $("#calcUsd").textContent = "US dollars only";
   }
   $("#calcKg").addEventListener("input", calc);
   $("#calcZone").addEventListener("change", calc);
@@ -443,13 +447,14 @@
       '<span class="big-e">😊</span><h2>About Jılmay</h2>' +
       "<p><b>Jılmay</b> means “smile!” in Iradi. It began as a simple board for selling horses and Ladas, and today it is where all of Irad buys and sells, from Talas to Tash-Kömür.</p>" +
       "<p>International online shops don't deliver to Irad. Jılmay does. Buy from your neighbours here, and for everything else, <a href=\"#cargo\" data-close-link>Jılmay Cargo</a> brings parcels from Kyrgyzstan to your door.</p>" +
-      "<p>Prices on Jılmay are shown in som. One US dollar is five som, as it has been since 1993.</p>",
+      "<p>Everyday goods on Jılmay are priced in som. Cars, property and other big purchases are usually priced in US dollars. Anything bought from abroad, and every Jılmay Cargo delivery, is paid in US dollars only.</p>" +
+      "<p>Jılmay does not accept Tulparcoin or any other cryptocurrency. 😊</p>",
     rules:
       '<span class="big-e">📜</span><h2>Jılmay Rules</h2><ol>' +
       "<li>Be polite to buyers and sellers. Smile. 😊</li>" +
       "<li>One item per listing. Horses must be photographed from both sides.</li>" +
-      "<li>Prices must be given in som or US dollars.</li>" +
-      "<li>Prohibited listings:<br>§4.1 horsemeat in any form;<br>§4.2 bovine animals, and any images of bovines;<br>§4.3 weapons and ammunition;<br>§4.4 goods banned by the ISEZ authorities.</li>" +
+      "<li>Prices must be given in som or US dollars. Goods bought from abroad are sold in US dollars only.</li>" +
+      "<li>Prohibited listings:<br>§4.1 horsemeat in any form;<br>§4.2 bovine animals, and any images of bovines;<br>§4.3 weapons and ammunition;<br>§4.4 goods banned by the ISEZ authorities;<br>§4.5 currency exchange, cryptocurrency, and payment in Tulparcoin.</li>" +
       "<li>Found animals must be posted in Free &amp; Found within three days.</li>" +
       "<li>Jılmay is not responsible for the condition of Soviet vehicles.</li></ol>"
   };

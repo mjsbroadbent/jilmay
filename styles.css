@@ -290,3 +290,8 @@ button, input, select { font: inherit; color: inherit; }
   .cities::-webkit-scrollbar { display: none; }
   .chip { flex-shrink: 0; }
 }
+
+/* exchange rate + payment notes */
+.fx { margin-left: auto; margin-right: 10px; font-weight: 700; color: var(--ink-2); white-space: nowrap; font-size: 12px; }
+.pay-note { margin: 12px 0 0; background: #fff8e1; border: 1px solid #ffe08a; color: #6b4e00; border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+@media (max-width: 600px) { .fx { font-size: 11px; margin-right: 4px; } .langs button:not(.on) { display: none; } }
