@@ -25,3 +25,7 @@ On the first visit of each browser session, three AliExpress-style popups are st
 3. **Lucky horse wheel:** always lands on the horse ("a FREE HORSE!**, horse not included").
 
 They're remembered for the session in `sessionStorage` (`jl_promos_seen`). Add `#promos` to the address to see them again.
+
+## Languages
+
+The Iradi, Russian and English buttons switch the whole interface (menus, categories, cities, prices and dates, the cargo page, the login loop, About and Rules, and the popups). The text lives in `i18n.js`, one block per language. Iradi uses its Kyrgyz-based Latin alphabet. Listings aren't translated: they stay as their sellers wrote them. The choice is remembered per browser (`localStorage`, `jl_lang`). Search also matches category and city names in all three languages.

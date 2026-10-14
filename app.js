@@ -2,7 +2,29 @@
   "use strict";
 
   var DATA = window.JILMAY;
+  var I18N = window.JL_I18N;
   var PAGE = 20;
+
+  /* ---------- language ---------- */
+  var LANG = "en";
+  try { var saved = localStorage.getItem("jl_lang"); if (saved && I18N[saved]) LANG = saved; } catch (e) {}
+  function T(k, vars) {
+    var d = I18N[LANG], v = (d && k in d) ? d[k] : I18N.en[k];
+    if (v === undefined) return k;
+    if (vars) v = String(v).replace(/\{(\w+)\}/g, function (m, n) { return vars[n] !== undefined ? vars[n] : m; });
+    return v;
+  }
+  function catName(id) { return (I18N[LANG].cat || {})[id] || I18N.en.cat[id] || id; }
+  function cityName(c) { return (I18N[LANG].city || {})[c] || c; }
+  function countText(n) {
+    if (LANG === "ru") {
+      var m10 = n % 10, m100 = n % 100;
+      if (m10 === 1 && m100 !== 11) return T("count1", { n: n });
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return T("count2", { n: n });
+      return T("countN", { n: n });
+    }
+    return T(n === 1 ? "count1" : "countN", { n: n });
+  }
 
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
@@ -16,11 +38,6 @@
     services: ["#e6f6f4", "#cdeee9"], free: ["#f9eefe", "#efd9fb"]
   };
 
-  var MONEY_NOTICE = "💵 Jılmay does not accept listings for currency exchange or cryptocurrency, and we do not accept Tulparcoin (Jılmay Rules §4.5). Prices are in som or US dollars; Jılmay Cargo is paid in US dollars only.";
-  var NOTICES = {
-    horses: "🐎 Horses are listed for riding, racing, breeding and milk only. Horsemeat in any form is prohibited (Jılmay Rules §4.1).",
-    livestock: "🚫 Bovine animals are not accepted in this category, or anywhere on Jılmay (Jılmay Rules §4.2)."
-  };
 
   var catById = {};
   DATA.categories.forEach(function (c) { catById[c.id] = c; });
@@ -29,7 +46,8 @@
   DATA.listings.forEach(function (l, i) {
     l.id = i + 1;
     var c = catById[l.c];
-    l._search = norm([l.t, l.d, l.city, l.s, c ? c.name : ""].join(" "));
+    var extra = ["en", "ir", "ru"].map(function (lg) { return (I18N[lg].cat[l.c] || "") + " " + ((I18N[lg].city || {})[l.city] || ""); }).join(" ");
+    l._search = norm([l.t, l.d, l.city, l.s, extra].join(" "));
   });
 
   /* ---------- helpers ---------- */
@@ -50,25 +68,24 @@
   }
   function usd(som) { return dollars(som / DATA.rate); }
   function priceHtml(l) {
-    if (l.p === 0) return '<div class="price free">Free</div>';
+    if (l.p === 0) return '<div class="price free">' + T("free") + "</div>";
     if (l.p === null || l.p === undefined) {
-      return '<div class="price neg">Negotiable' + (l.cur === "usd" ? ' <span class="usd">in $</span>' : "") + "</div>";
+      return '<div class="price neg">' + T("neg") + (l.cur === "usd" ? ' <span class="usd">' + T("negUsd") + "</span>" : "") + "</div>";
     }
-    var unit = l.unit ? " / " + l.unit : "";
+    var unit = l.unit ? " / " + T("u_" + l.unit) : "";
     if (l.cur === "usd") return '<div class="price">' + dollars(l.p) + unit + "</div>";
     var alt = l.p >= 5000 ? '<span class="usd">≈ ' + usd(l.p) + "</span>" : "";
-    return '<div class="price">' + fmt(l.p) + " som" + unit + alt + "</div>";
+    return '<div class="price">' + fmt(LANG === "ru" ? String(l.p).replace(".", ",") : l.p) + " " + T("som") + unit + alt + "</div>";
   }
   function when(mins) {
     var now = new Date();
     var t = new Date(now.getTime() - mins * 60000);
     var hhmm = ("0" + t.getHours()).slice(-2) + ":" + ("0" + t.getMinutes()).slice(-2);
-    if (mins < 60) return mins <= 1 ? "Just now" : mins + " min ago";
+    if (mins < 60) return mins <= 1 ? T("justNow") : T("minAgo", { n: mins });
     var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    if (t.getTime() >= startToday) return "Today, " + hhmm;
-    if (t.getTime() >= startToday - 86400000) return "Yesterday, " + hhmm;
-    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return t.getDate() + " " + months[t.getMonth()];
+    if (t.getTime() >= startToday) return T("today", { t: hhmm });
+    if (t.getTime() >= startToday - 86400000) return T("yesterday", { t: hhmm });
+    return t.getDate() + " " + T("months")[t.getMonth()];
   }
   function initials(name) {
     var parts = name.replace(/[^\p{L}\s-]/gu, "").split(/\s+/).filter(Boolean);
@@ -128,15 +145,15 @@
     $("#cats").innerHTML = DATA.categories.map(function (c) {
       return '<button type="button" class="cat' + (st.cat === c.id ? " on" : "") + '" data-cat="' + c.id + '">' +
         '<span class="cat-e">' + c.e + "</span>" +
-        '<span class="cat-n">' + esc(c.name) + "</span>" +
+        '<span class="cat-n">' + esc(catName(c.id)) + "</span>" +
         '<span class="cat-c">' + (counts[c.id] || 0) + "</span></button>";
     }).join("");
   }
 
   function renderCities(st) {
-    var html = '<button type="button" class="chip' + (!st.city ? " on" : "") + '" data-city="">📍 All of Irad</button>';
+    var html = '<button type="button" class="chip' + (!st.city ? " on" : "") + '" data-city="">' + T("allIrad") + "</button>";
     html += DATA.cities.map(function (c) {
-      return '<button type="button" class="chip' + (st.city === c ? " on" : "") + '" data-city="' + esc(c) + '">' + esc(c) + "</button>";
+      return '<button type="button" class="chip' + (st.city === c ? " on" : "") + '" data-city="' + esc(c) + '">' + esc(cityName(c)) + "</button>";
     }).join("");
     $("#cities").innerHTML = html;
   }
@@ -150,13 +167,13 @@
         '<span class="thumb-bg-e" style="bottom:8%;right:10%">' + c.e + "</span>" +
         '<span class="thumb-e">' + l.e + "</span>" +
         (l.vip ? '<span class="badge-vip">VIP</span>' : "") +
-        '<span class="fav" data-fav title="Add to favourites">🤍</span>' +
+        '<span class="fav" data-fav title="' + esc(T("fav")) + '">🤍</span>' +
       "</div>" +
       '<div class="card-body">' +
         priceHtml(l) +
         '<div class="title">' + esc(l.t) + "</div>" +
         '<div class="desc">' + esc(l.d) + "</div>" +
-        '<div class="where-line">📍 ' + esc(l.city) + " · " + when(l.m) + "</div>" +
+        '<div class="where-line">📍 ' + esc(cityName(l.city)) + " · " + when(l.m) + "</div>" +
         '<div class="meta"><span class="ava" style="background:' + avaColor(l.s) + '">' + esc(initials(l.s)) + "</span>" +
           '<span class="seller">' + esc(l.s) + "</span>" + (l.pro ? '<span class="pro">PRO</span>' : "") +
         "</div>" +
@@ -169,21 +186,21 @@
     if (key !== lastKey) { shown = PAGE; lastKey = key; }
 
     var cat = st.cat ? catById[st.cat] : null;
-    var title = st.q ? "Results for “" + st.q + "”" : (cat ? cat.e + " " + cat.name : "New listings in Irad");
-    if (st.city) title += " in " + st.city;
+    var title = st.q ? T("results", { q: st.q }) : (cat ? cat.e + " " + catName(cat.id) : T("feedTitle"));
+    if (st.city) title = T("inCity", { title: title, city: cityName(st.city) });
     $("#feedTitle").textContent = title;
-    $("#feedSub").textContent = list.length + (list.length === 1 ? " listing" : " listings");
+    $("#feedSub").textContent = countText(list.length);
 
-    var notice = NOTICES[st.cat];
-    if (!notice && st.q && /\b(cow|cows|cattle|bull|ox|oxen|calf|yak|beef|bovine)\b/i.test(st.q)) notice = NOTICES.livestock;
-    if (!notice && st.q && /\b(horsemeat|kazy|kazi|chuchuk)\b/i.test(st.q)) notice = NOTICES.horses;
-    if (!notice && st.q && /\b(dollars?|usd|exchange|tulparcoin|tlpr|crypto\w*|bitcoin)\b/i.test(st.q)) notice = MONEY_NOTICE;
+    var notice = { horses: T("nHorses"), livestock: T("nCattle") }[st.cat];
+    if (!notice && st.q && /(^|[^\p{L}])(cows?|cattle|bulls?|ox|oxen|calf|yaks?|beef|bovine|корова|бык|говядин\p{L}*|уй|bodo)([^\p{L}]|$)/iu.test(st.q)) notice = T("nCattle");
+    if (!notice && st.q && /(^|[^\p{L}])(horsemeat|kazy|kazi|chuchuk|конина|казы|чучук|jılkı eti)([^\p{L}]|$)/iu.test(st.q)) notice = T("nHorses");
+    if (!notice && st.q && /(^|[^\p{L}])(dollars?|usd|exchange|tulparcoin|tlpr|crypto\p{L}*|bitcoin|доллар\p{L}*|обмен|крипт\p{L}*|valyuta)([^\p{L}]|$)/iu.test(st.q)) notice = T("nMoney");
     $("#notice").hidden = !notice;
     $("#notice").textContent = notice || "";
 
     if (!list.length) {
-      $("#grid").innerHTML = '<div class="empty"><span class="empty-e">😶</span><h2>Nothing found</h2>' +
-        "<p>Try another word, choose all of Irad, or ask around at the bazaar.</p></div>";
+      $("#grid").innerHTML = '<div class="empty"><span class="empty-e">😶</span><h2>' + T("emptyH") + "</h2>" +
+        "<p>" + T("emptyP") + "</p></div>";
       $("#moreBtn").hidden = true;
       return;
     }
@@ -211,9 +228,14 @@
   }
 
   /* ---------- search & filters ---------- */
-  $("#searchCat").innerHTML += DATA.categories.map(function (c) {
-    return '<option value="' + c.id + '">' + c.e + " " + esc(c.name) + "</option>";
-  }).join("");
+  function fillCatSelect() {
+    var keep = $("#searchCat").value;
+    $("#searchCat").innerHTML = '<option value="">' + esc(T("allCats")) + "</option>" + DATA.categories.map(function (c) {
+      return '<option value="' + c.id + '">' + c.e + " " + esc(catName(c.id)) + "</option>";
+    }).join("");
+    $("#searchCat").value = keep;
+  }
+  fillCatSelect();
 
   $("#searchForm").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -269,27 +291,22 @@
     if (!(kg > 0)) { $("#calcPrice").textContent = "—"; $("#calcUsd").textContent = ""; return; }
     var cost = Math.max(1, Math.ceil(kg * 10) / 10) * rate;
     $("#calcPrice").textContent = "$" + cost.toFixed(2);
-    $("#calcUsd").textContent = "US dollars only";
+    $("#calcUsd").textContent = T("cUsdOnly");
   }
   $("#calcKg").addEventListener("input", calc);
   $("#calcZone").addEventListener("change", calc);
   calc();
 
   /* ---------- the login loop ---------- */
-  var REASONS = {
-    item: "Log in to see this listing and contact the seller.",
-    fav: "Log in to save listings to your favourites.",
-    post: "Log in to post an ad. It's free!",
-    cargo: "Log in to get your personal Bishkek address.",
-    general: "Welcome back! Log in to continue."
-  };
+  var REASONS = { item: "rItem", fav: "rFav", post: "rPost", cargo: "rCargo", general: "rGeneral" };
+  var reasonKey = "rGeneral";
   var timers = [];
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
   function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 
   function busy(btn, text) {
     btn.disabled = true;
-    btn.dataset.label = btn.dataset.label || btn.textContent;
+    btn.dataset.label = btn.textContent;
     btn.innerHTML = '<span class="spinner"></span>' + text;
   }
   function idle(btn) {
@@ -329,7 +346,8 @@
   function openLogin(reason) {
     closeModals();
     resetLogin();
-    $("#loginReason").textContent = REASONS[reason] || REASONS.general;
+    reasonKey = REASONS[reason] || "rGeneral";
+    $("#loginReason").textContent = T(reasonKey);
     $("#authModal").hidden = false;
     document.body.style.overflow = "hidden";
     showPane("login");
@@ -345,17 +363,17 @@
     e.preventDefault();
     var user = $("#loginUser"), pass = $("#loginPass"), btn = $("#loginBtn");
     if (!user.value.trim() || !pass.value) {
-      msg("#loginMsg", "Enter your phone or email and your password.");
+      msg("#loginMsg", T("mFill"));
       shake($("#paneLogin"));
       return;
     }
     msg("#loginMsg");
-    busy(btn, "Checking…");
+    busy(btn, T("mChecking"));
     later(function () {
       idle(btn);
       pass.classList.add("bad");
       face($("#paneLogin"), "😬");
-      msg("#loginMsg", "Incorrect password. Please try again or reset your password.");
+      msg("#loginMsg", T("mWrong"));
       shake($("#paneLogin"));
       later(function () {
         msg("#forgotMsg");
@@ -372,17 +390,17 @@
     e.preventDefault();
     var email = $("#forgotEmail"), btn = $("#forgotBtn");
     if (!email.value.trim()) {
-      msg("#forgotMsg", "Please enter your email address.");
+      msg("#forgotMsg", T("mEmail"));
       shake($("#paneForgot"));
       return;
     }
     msg("#forgotMsg");
-    busy(btn, "Sending…");
+    busy(btn, T("mSending"));
     later(function () {
       idle(btn);
       email.classList.add("bad");
       face($("#paneForgot"), "😵");
-      msg("#forgotMsg", "This email address is invalid.");
+      msg("#forgotMsg", T("mInvalid"));
       shake($("#paneForgot"));
       later(backToLogin, 2400);
     }, 1400);
@@ -393,17 +411,17 @@
     e.preventDefault();
     var user = $("#regUser"), btn = $("#regBtn");
     if (!$("#regName").value.trim() || !user.value.trim() || !$("#regPass").value) {
-      msg("#regMsg", "Please fill in all fields.");
+      msg("#regMsg", T("mAll"));
       shake($("#paneRegister"));
       return;
     }
     msg("#regMsg");
-    busy(btn, "Creating account…");
+    busy(btn, T("mCreating"));
     later(function () {
       idle(btn);
       user.classList.add("bad");
       face($("#paneRegister"), "🙃");
-      msg("#regMsg", "An account with this phone or email already exists. Please log in.");
+      msg("#regMsg", T("mExists"));
       shake($("#paneRegister"));
       later(function () {
         var u = user.value.trim();
@@ -442,24 +460,10 @@
   });
 
   /* ---------- info modals ---------- */
-  var INFO = {
-    about:
-      '<span class="big-e">😊</span><h2>About Jılmay</h2>' +
-      "<p><b>Jılmay</b> means “smile!” in Iradi. It began as a simple board for selling horses and Ladas, and today it is where all of Irad buys and sells, from Talas to Tash-Kömür.</p>" +
-      "<p>International online shops don't deliver to Irad. Jılmay does. Buy from your neighbours here, and for everything else, <a href=\"#cargo\" data-close-link>Jılmay Cargo</a> brings parcels from Kyrgyzstan to your door.</p>" +
-      "<p>Everyday goods on Jılmay are priced in som. Cars, property and other big purchases are usually priced in US dollars. Anything bought from abroad, and every Jılmay Cargo delivery, is paid in US dollars only.</p>" +
-      "<p>Jılmay does not accept Tulparcoin or any other cryptocurrency. 😊</p>",
-    rules:
-      '<span class="big-e">📜</span><h2>Jılmay Rules</h2><ol>' +
-      "<li>Be polite to buyers and sellers. Smile. 😊</li>" +
-      "<li>One item per listing. Horses must be photographed from both sides.</li>" +
-      "<li>Prices must be given in som or US dollars. Goods bought from abroad are sold in US dollars only.</li>" +
-      "<li>Prohibited listings:<br>§4.1 horsemeat in any form;<br>§4.2 bovine animals, and any images of bovines;<br>§4.3 weapons and ammunition;<br>§4.4 goods banned by the ISEZ authorities;<br>§4.5 currency exchange, cryptocurrency, and payment in Tulparcoin.</li>" +
-      "<li>Found animals must be posted in Free &amp; Found within three days.</li>" +
-      "<li>Jılmay is not responsible for the condition of Soviet vehicles.</li></ol>"
-  };
+  var infoOpen = "";
   function openInfo(which) {
-    $("#infoBody").innerHTML = INFO[which];
+    infoOpen = which;
+    $("#infoBody").innerHTML = T(which === "about" ? "infoAbout" : "infoRules");
     $("#authModal").hidden = true;
     $("#infoModal").hidden = false;
     document.body.style.overflow = "hidden";
@@ -488,12 +492,33 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
   }
+  function applyStatic() {
+    $$("[data-i]").forEach(function (el) { el.textContent = T(el.dataset.i); });
+    $$("[data-ih]").forEach(function (el) { el.innerHTML = T(el.dataset.ih); });
+    $$("[data-ip]").forEach(function (el) { el.placeholder = T(el.dataset.ip); });
+    $$("[data-it]").forEach(function (el) { el.title = T(el.dataset.it); });
+    $$("[data-ia]").forEach(function (el) { el.setAttribute("aria-label", T(el.dataset.ia)); });
+    $$("[data-lang]").forEach(function (b) { b.classList.toggle("on", b.dataset.lang === LANG); });
+    document.documentElement.lang = I18N.htmlLang[LANG] || "en";
+    document.title = T("docTitle");
+    $("#loginReason").textContent = T(reasonKey);
+    if (window.JL_onLang) window.JL_onLang();
+  }
+  function setLang(lg) {
+    if (!I18N[lg] || lg === LANG) return;
+    LANG = lg;
+    try { localStorage.setItem("jl_lang", lg); } catch (e) {}
+    applyStatic();
+    fillCatSelect();
+    calc();
+    if (!$("#infoModal").hidden && infoOpen) openInfo(infoOpen);
+    render();
+  }
   $$("[data-lang]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      if (b.dataset.lang === "Iradi") toast("Jılmay in Iradi is coming soon 😊");
-      else if (b.dataset.lang === "Русский") toast("Русская версия временно недоступна 😊");
-    });
+    b.addEventListener("click", function () { setLang(b.dataset.lang); });
   });
+  applyStatic();
+  calc();
 
   window.addEventListener("hashchange", render);
   render();
@@ -526,15 +551,19 @@
         }
       }, 180);
     }
+    var cdLeft = 9 * 60 + 59;
+    function endsLine() {
+      var mmss = ("0" + Math.floor(cdLeft / 60)).slice(-2) + ":" + ("0" + (cdLeft % 60)).slice(-2);
+      $("#endsLine").innerHTML = T("pEnds", { t: '<b class="countdown" id="countdown">' + mmss + "</b>" });
+    }
+    endsLine();
     function startCountdown() {
-      var t = 9 * 60 + 59;
-      var el = $("#countdown");
       var x = $("#promoCoupons .promo-x");
       setTimeout(function () { x.classList.add("shown"); }, 2500);
       clearInterval(countdownTimer);
       countdownTimer = setInterval(function () {
-        t = t > 0 ? t - 1 : 9 * 60 + 59;   // it never actually ends
-        el.textContent = ("0" + Math.floor(t / 60)).slice(-2) + ":" + ("0" + (t % 60)).slice(-2);
+        cdLeft = cdLeft > 0 ? cdLeft - 1 : 9 * 60 + 59;   // it never actually ends
+        endsLine();
       }, 1000);
     }
 
@@ -542,28 +571,31 @@
       b.addEventListener("click", function () { closePromo(b.closest(".promo")); });
     });
     $$("#promoLayer [data-promo-claim]").forEach(function (b) {
-      b.addEventListener("click", function () { toast(b.dataset.promoClaim); closePromo(b.closest(".promo")); });
+      b.addEventListener("click", function () { toast(T(b.dataset.promoClaim)); closePromo(b.closest(".promo")); });
     });
 
     /* Ship to: Irad is never on the list */
     $("#shipTo").addEventListener("change", function () {
-      if (this.value.indexOf("Other") === 0) {
-        $("#shipNote").innerHTML = "Sorry, delivery to your region is not available. Please choose a country from the list. 😊";
-        $("#shipNote").classList.add("warn");
-      } else {
-        $("#shipNote").textContent = "Delivery to " + this.value + " available! Residents of other regions can use 📦 Jılmay Cargo.";
-        $("#shipNote").classList.remove("warn");
-      }
+      shipNote();
     });
+    function shipName() { var o = $("#shipTo").selectedOptions[0]; return o ? o.textContent : ""; }
+    var shipTouched = false;
+    function shipNote() {
+      shipTouched = true;
+      var n = $("#shipNote");
+      n.removeAttribute("data-i");
+      if ($("#shipTo").value === "other") { n.textContent = T("pShipNo"); n.classList.add("warn"); }
+      else { n.textContent = T("pShipYes", { c: shipName() }); n.classList.remove("warn"); }
+    }
     $("#shipSave").addEventListener("click", function () {
-      toast("Region saved: " + ($("#shipTo").value.indexOf("Other") === 0 ? "nowhere" : $("#shipTo").value) + ". Showing listings for Irad 😊");
+      toast(T("pSaved", { c: $("#shipTo").value === "other" ? T("pNowhere") : shipName() }));
       closePromo($("#promoShip"));
     });
 
     /* The wheel always lands on the same prize */
     var spun = false;
     $("#spinBtn").addEventListener("click", function () {
-      if (spun) { toast("Log in to collect your prize 😊"); closePromo($("#promoWheel")); return; }
+      if (spun) { toast(T("pCollectToast")); closePromo($("#promoWheel")); return; }
       spun = true;
       this.disabled = true;
       var wheel = $("#wheel");
@@ -572,12 +604,15 @@
       setTimeout(function () {
         var r = $("#wheelResult");
         r.hidden = false;
-        r.innerHTML = "🎉 <b>You won: a FREE HORSE!**</b><br><small>**Horse courier on your next Jılmay Cargo delivery to the Autonomous Tribal Regions. Horse not included.</small>";
+        r.setAttribute("data-ih", "pWon");
+        r.innerHTML = T("pWon");
         btn.disabled = false;
-        btn.textContent = "COLLECT PRIZE 🐎";
+        btn.dataset.i = "pCollect";
+        btn.textContent = T("pCollect");
       }, 3600);
     });
 
+    window.JL_onLang = function () { endsLine(); if (shipTouched) shipNote(); };
     layer.hidden = false;
     document.body.style.overflow = "hidden";
   })();
