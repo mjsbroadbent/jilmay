@@ -617,4 +617,33 @@
     document.body.style.overflow = "hidden";
   })();
 
+  /* ---------- bottom feedback bar (once per browser session, after the welcome popups) ---------- */
+  (function () {
+    var bar = $("#rateBar"), KEY = "jl_rate_seen", seen = false;
+    try { seen = sessionStorage.getItem(KEY) === "1"; } catch (e) {}
+    if (/[?&#]promos\b/.test(location.href)) seen = false;
+    if (seen) return;
+    function done() { try { sessionStorage.setItem(KEY, "1"); } catch (e) {} }
+    function hide() { bar.classList.add("rate-out"); setTimeout(function () { bar.hidden = true; }, 250); done(); }
+    function show() { bar.hidden = false; }
+    /* appear a few seconds after the welcome popups are gone */
+    (function wait() {
+      if ($("#promoLayer").hidden) setTimeout(show, 4000);
+      else setTimeout(wait, 500);
+    })();
+    $("#rateX").addEventListener("click", hide);
+    $$("#rateBar [data-rate]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var n = b.dataset.rate;
+        $("#rateAsk").hidden = true;
+        $("#rateDoneE").textContent = b.textContent;
+        $("#rateDoneT").setAttribute("data-i", "fb" + n);
+        $("#rateDoneT").textContent = T("fb" + n);
+        $("#rateDone").hidden = false;
+        done();
+        setTimeout(hide, 4500);
+      });
+    });
+  })();
+
 })();

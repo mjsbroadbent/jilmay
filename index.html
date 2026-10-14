@@ -315,6 +315,25 @@
     </div>
   </div>
 
+  <!-- Bottom feedback bar: "Do you like your recommendations?" -->
+  <div class="rate-bar" id="rateBar" role="dialog" aria-labelledby="rateQ" hidden>
+    <button type="button" class="rate-x" id="rateX" data-ia="close" aria-label="Close">✕</button>
+    <div class="rate-ask" id="rateAsk">
+      <p class="rate-q" id="rateQ" data-i="fbQ">Do you like your recommended listings?</p>
+      <div class="rate-faces" role="group">
+        <button type="button" data-rate="1" title="1">😡</button>
+        <button type="button" data-rate="2" title="2">🙁</button>
+        <button type="button" data-rate="3" title="3">😐</button>
+        <button type="button" data-rate="4" title="4">🙂</button>
+        <button type="button" data-rate="5" title="5">😍</button>
+      </div>
+    </div>
+    <div class="rate-done" id="rateDone" hidden>
+      <span class="rate-done-e" id="rateDoneE">🐎</span>
+      <p id="rateDoneT"></p>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="i18n.js"></script>

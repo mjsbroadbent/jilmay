@@ -79,6 +79,12 @@ window.JL_I18N = {
     pSpin: "SPIN NOW 🎡", pWheelFine: "*Prizes valid for logged-in users only.",
     pWon: "🎉 <b>You won: a FREE HORSE!**</b><br><small>**Horse courier on your next Jılmay Cargo delivery to the Autonomous Tribal Regions. Horse not included.</small>",
     pCollect: "COLLECT PRIZE 🐎", pCollectToast: "Log in to collect your prize 😊",
+    fbQ: "Do you like your recommended listings?",
+    fb1: "We're sorry! To make it up to you, we'll show you more horses. 🐎",
+    fb2: "Thank you for your honesty. We'll show you more horses. 🐎",
+    fb3: "Thank you! Our algorithm has noted: more horses. 🐎",
+    fb4: "Glad you like them! We'll show you more horses. 🐎",
+    fb5: "Wonderful! Here come more horses. 🐎🐎🐎",
     close: "Close"
   },
 
@@ -149,6 +155,12 @@ window.JL_I18N = {
     pSpin: "AYLANDIR 🎡", pWheelFine: "*Sıylıktar kirgen koldonuuchular üchün gana.",
     pWon: "🎉 <b>Siz uttuñuz: BEKER AT!**</b><br><small>**Uruu aymaktarına kiyinki Jılmay Kargo jetkirüüsündö at menen jetkirüü. At kirbeyt.</small>",
     pCollect: "SIYLIKTI ALUU 🐎", pCollectToast: "Sıylıktı aluu üchün kiriñiz 😊",
+    fbQ: "Sizge sunushtalgan jarnamalar jaktıbı?",
+    fb1: "Kechiresiz! Ornun toltuuruu üchün dagı köp at körsötöbüz. 🐎",
+    fb2: "Ak niettigiñiz üchün rahmat. Dagı köp at körsötöbüz. 🐎",
+    fb3: "Rahmat! Algoritmibiz jazıp aldı: dagı at. 🐎",
+    fb4: "Jakkanına kubanıchtabız! Dagı köp at körsötöbüz. 🐎",
+    fb5: "Sonun! Mına, dagı attar keldi. 🐎🐎🐎",
     close: "Jabuu"
   },
 
@@ -219,6 +231,12 @@ window.JL_I18N = {
     pSpin: "КРУТИТЬ 🎡", pWheelFine: "*Призы доступны только вошедшим пользователям.",
     pWon: "🎉 <b>Вы выиграли: ЛОШАДЬ ДАРОМ!**</b><br><small>**Конный курьер при следующей доставке Jılmay Карго в автономные племенные районы. Лошадь не прилагается.</small>",
     pCollect: "ЗАБРАТЬ ПРИЗ 🐎", pCollectToast: "Войдите, чтобы забрать приз 😊",
+    fbQ: "Вам нравятся рекомендованные объявления?",
+    fb1: "Нам очень жаль! В качестве извинения мы покажем вам больше лошадей. 🐎",
+    fb2: "Спасибо за честность. Мы покажем вам больше лошадей. 🐎",
+    fb3: "Спасибо! Наш алгоритм записал: больше лошадей. 🐎",
+    fb4: "Рады, что вам нравится! Мы покажем вам больше лошадей. 🐎",
+    fb5: "Чудесно! Вот ещё лошади. 🐎🐎🐎",
     close: "Закрыть"
   }
 };
