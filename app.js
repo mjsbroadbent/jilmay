@@ -497,4 +497,89 @@
 
   window.addEventListener("hashchange", render);
   render();
+
+  /* ---------- welcome popups (three stacked, once per browser session) ---------- */
+  (function () {
+    var layer = $("#promoLayer");
+    var order = ["#promoShip", "#promoCoupons", "#promoWheel"];   // top first
+    var KEY = "jl_promos_seen";
+    var seen = false;
+    try { seen = sessionStorage.getItem(KEY) === "1"; } catch (e) {}
+    if (/[?&#]promos\b/.test(location.href)) seen = false;   // add #promos to the URL to see them again
+    if (seen) return;
+
+    var countdownTimer;
+    function remaining() { return order.filter(function (s) { return !$(s).hidden; }); }
+    function closePromo(el) {
+      el.classList.add("promo-out");
+      setTimeout(function () {
+        el.hidden = true;
+        el.classList.remove("promo-out");
+        var left = remaining();
+        if (!left.length) {
+          layer.hidden = true;
+          document.body.style.overflow = "";
+          clearInterval(countdownTimer);
+          try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+        } else if (left[0] === "#promoCoupons") {
+          startCountdown();
+        }
+      }, 180);
+    }
+    function startCountdown() {
+      var t = 9 * 60 + 59;
+      var el = $("#countdown");
+      var x = $("#promoCoupons .promo-x");
+      setTimeout(function () { x.classList.add("shown"); }, 2500);
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(function () {
+        t = t > 0 ? t - 1 : 9 * 60 + 59;   // it never actually ends
+        el.textContent = ("0" + Math.floor(t / 60)).slice(-2) + ":" + ("0" + (t % 60)).slice(-2);
+      }, 1000);
+    }
+
+    $$("#promoLayer [data-promo-close]").forEach(function (b) {
+      b.addEventListener("click", function () { closePromo(b.closest(".promo")); });
+    });
+    $$("#promoLayer [data-promo-claim]").forEach(function (b) {
+      b.addEventListener("click", function () { toast(b.dataset.promoClaim); closePromo(b.closest(".promo")); });
+    });
+
+    /* Ship to: Irad is never on the list */
+    $("#shipTo").addEventListener("change", function () {
+      if (this.value.indexOf("Other") === 0) {
+        $("#shipNote").innerHTML = "Sorry, delivery to your region is not available. Please choose a country from the list. 😊";
+        $("#shipNote").classList.add("warn");
+      } else {
+        $("#shipNote").textContent = "Delivery to " + this.value + " available! Residents of other regions can use 📦 Jılmay Cargo.";
+        $("#shipNote").classList.remove("warn");
+      }
+    });
+    $("#shipSave").addEventListener("click", function () {
+      toast("Region saved: " + ($("#shipTo").value.indexOf("Other") === 0 ? "nowhere" : $("#shipTo").value) + ". Showing listings for Irad 😊");
+      closePromo($("#promoShip"));
+    });
+
+    /* The wheel always lands on the same prize */
+    var spun = false;
+    $("#spinBtn").addEventListener("click", function () {
+      if (spun) { toast("Log in to collect your prize 😊"); closePromo($("#promoWheel")); return; }
+      spun = true;
+      this.disabled = true;
+      var wheel = $("#wheel");
+      wheel.style.transform = "rotate(" + (360 * 6 - 22.5) + "deg)";   // lands on 🐎 every time
+      var btn = this;
+      setTimeout(function () {
+        var r = $("#wheelResult");
+        r.hidden = false;
+        r.innerHTML = "🎉 <b>You won: a FREE HORSE!**</b><br><small>**Horse courier on your next Jılmay Cargo delivery to the Autonomous Tribal Regions. Horse not included.</small>";
+        btn.disabled = false;
+        btn.textContent = "COLLECT PRIZE 🐎";
+      }, 3600);
+    });
+
+    layer.hidden = false;
+    document.body.style.overflow = "hidden";
+  })();
+
 })();

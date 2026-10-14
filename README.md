@@ -15,3 +15,13 @@ Irad's marketplace, a lalafo-style classifieds site where everything is emoji th
 - `#cargo` is Jılmay Cargo, the service that receives parcels in Bishkek and trucks them to addresses in Irad.
 
 No build step. It runs as a static site on GitHub Pages: in the repo settings, under Pages, deploy from the `main` branch root.
+
+## Welcome popups
+
+On the first visit of each browser session, three AliExpress-style popups are stacked over the page and must be closed one by one:
+
+1. **Ship to:** a country picker that never lists Irad ("Other / not listed" says delivery isn't available).
+2. **New user coupons:** a countdown that never runs out; its close button only appears after a couple of seconds and is tiny.
+3. **Lucky horse wheel:** always lands on the horse ("a FREE HORSE!**, horse not included").
+
+They're remembered for the session in `sessionStorage` (`jl_promos_seen`). Add `#promos` to the address to see them again.

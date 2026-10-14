@@ -258,6 +258,63 @@
     </div>
   </div>
 
+  <!-- Welcome popups (AliExpress style): three stacked, closed one by one -->
+  <div class="promo-layer" id="promoLayer" hidden>
+    <div class="promo-backdrop"></div>
+
+    <!-- 3 (bottom): spin the wheel -->
+    <div class="promo promo-wheel" id="promoWheel" role="dialog" aria-modal="true" aria-label="Spin to win">
+      <button type="button" class="promo-x" data-promo-close aria-label="Close">✕</button>
+      <div class="promo-ribbon">🎡 LUCKY HORSE WHEEL</div>
+      <h2>Spin to win!</h2>
+      <p class="promo-sub">One free spin for every new visitor. 100% of spins win a prize!*</p>
+      <div class="wheel-wrap">
+        <div class="wheel-pin">▼</div>
+        <div class="wheel" id="wheel">
+          <span style="--i:0">🐎</span><span style="--i:1">💵</span><span style="--i:2">🛏️</span><span style="--i:3">🚗</span>
+          <span style="--i:4">🍯</span><span style="--i:5">📦</span><span style="--i:6">🥛</span><span style="--i:7">🎁</span>
+        </div>
+      </div>
+      <div class="wheel-result" id="wheelResult" hidden></div>
+      <button type="button" class="promo-btn" id="spinBtn">SPIN NOW 🎡</button>
+      <p class="promo-fine">*Prizes valid for logged-in users only.</p>
+    </div>
+
+    <!-- 2 (middle): coupon pack -->
+    <div class="promo promo-coupons" id="promoCoupons" role="dialog" aria-modal="true" aria-label="New user gifts">
+      <button type="button" class="promo-x late" data-promo-close aria-label="Close">✕</button>
+      <div class="promo-ribbon hot">🔥 NEW USER EXCLUSIVE 🔥</div>
+      <h2>Your welcome gift is waiting!</h2>
+      <p class="promo-sub">Ends in <b class="countdown" id="countdown">09:59</b></p>
+      <div class="coupons">
+        <div class="coupon"><b>50 som</b><span>OFF orders over 5 000 som</span></div>
+        <div class="coupon"><b>$2</b><span>OFF Jılmay Cargo over $400</span></div>
+        <div class="coupon"><b>🐎 FREE</b><span>Horse courier, ATR, Feb only</span></div>
+      </div>
+      <button type="button" class="promo-btn" data-promo-claim="Coupons added! Log in to use them 😊">COLLECT ALL 🎁</button>
+      <p class="promo-fine">Coupons cannot be combined, exchanged for som, dollars or Tulparcoin, or used.</p>
+    </div>
+
+    <!-- 1 (top): ship to -->
+    <div class="promo promo-ship" id="promoShip" role="dialog" aria-modal="true" aria-label="Choose your region">
+      <button type="button" class="promo-x" data-promo-close aria-label="Close">✕</button>
+      <div class="promo-face">📍</div>
+      <h2>Where should we deliver?</h2>
+      <p class="promo-sub">We detected your location as: <b>Unknown region</b></p>
+      <label class="ship-label">Ship to
+        <select id="shipTo">
+          <option>Kazakhstan</option>
+          <option>Kyrgyzstan</option>
+          <option>Uzbekistan</option>
+          <option>Russia</option>
+          <option>Other / not listed</option>
+        </select>
+      </label>
+      <p class="ship-note" id="shipNote">Can't find your country? Choose "Other / not listed".</p>
+      <button type="button" class="promo-btn" id="shipSave">Save 💾</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="data.js"></script>
