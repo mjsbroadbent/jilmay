@@ -177,7 +177,7 @@
     var notice = NOTICES[st.cat];
     if (!notice && st.q && /\b(cow|cows|cattle|bull|ox|oxen|calf|yak|beef|bovine)\b/i.test(st.q)) notice = NOTICES.livestock;
     if (!notice && st.q && /\b(horsemeat|kazy|kazi|chuchuk)\b/i.test(st.q)) notice = NOTICES.horses;
-    if (!notice && st.q && /\b(dollars?|usd|exchange|tulpar|tulparcoin|tlpr|crypto\w*|bitcoin)\b/i.test(st.q)) notice = MONEY_NOTICE;
+    if (!notice && st.q && /\b(dollars?|usd|exchange|tulparcoin|tlpr|crypto\w*|bitcoin)\b/i.test(st.q)) notice = MONEY_NOTICE;
     $("#notice").hidden = !notice;
     $("#notice").textContent = notice || "";
 
