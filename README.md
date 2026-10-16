@@ -4,6 +4,7 @@ Irad's marketplace, a lalafo-style classifieds site where everything is emoji th
 
 - `index.html` is the page: header with search, emoji category tiles, city filter, listing grid, the Jılmay Cargo page, and the login modal.
 - `data.js` holds the categories, cities and listings. Add or edit listings there; prices are in som unless a listing has `cur: "usd"` (rate 8.40 som = $1, set in `rate`), `p: null` means "Negotiable" and `p: 0` means "Free". Cars, property and big items are in dollars; Jılmay Cargo is dollars only.
+- Listings can have a photo: `img: "img/listings/<name>.jpg"` (JPEG, about 800 px on the long side, phone numbers cropped or blurred out). Listings without one show their emoji `e` on a pastel tile, as most sellers don't bother with photos. The emoji is still needed on photo listings.
 - `app.js` handles search, filters, the cargo calculator and the login loop.
 - `styles.css` is all the styling.
 

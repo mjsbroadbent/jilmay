@@ -163,9 +163,12 @@
     var tint = TINTS[l.c] || ["#f2f3f5", "#e6e8ec"];
     return '<div class="card" role="button" tabindex="0" data-id="' + l.id + '" aria-label="' + esc(l.t) + '">' +
       '<div class="thumb" style="background:linear-gradient(145deg,' + tint[0] + "," + tint[1] + ')">' +
-        '<span class="thumb-bg-e" style="top:10%;left:12%">' + c.e + "</span>" +
-        '<span class="thumb-bg-e" style="bottom:8%;right:10%">' + c.e + "</span>" +
-        '<span class="thumb-e">' + l.e + "</span>" +
+        (l.img
+          ? '<img class="thumb-img" src="' + esc(l.img) + '" alt="" loading="lazy">' +
+            '<span class="photos">📷 1</span>'
+          : '<span class="thumb-bg-e" style="top:10%;left:12%">' + c.e + "</span>" +
+            '<span class="thumb-bg-e" style="bottom:8%;right:10%">' + c.e + "</span>" +
+            '<span class="thumb-e">' + l.e + "</span>") +
         (l.vip ? '<span class="badge-vip">VIP</span>' : "") +
         '<span class="fav" data-fav title="' + esc(T("fav")) + '">🤍</span>' +
       "</div>" +
